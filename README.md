@@ -1,5 +1,3 @@
-<img width="150" height="150" align="left" style="float: left; margin: 0 10px 0 0;" alt="discord-screenshot" src="https://i.imgur.com/xUgJ1aM.png"> 
-
 # Discord Screenshot
 
 [![Active Installs](http://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/dave-kramer)
@@ -7,7 +5,6 @@
 [![License](https://img.shields.io/github/license/dave-kramer/discord-screenshot)](https://github.com/dave-kramer/discord-screenshot/blob/main/LICENSE)
 
 > Take a screenshot in RuneLite and instantly send it to your Discord server!
-
 
 ## Table of Contents
 
