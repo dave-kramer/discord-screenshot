@@ -2,6 +2,7 @@
 
 [![Active Installs](http://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/dave-kramer)
 [![Plugin Rank](http://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/rank/plugin/discord-screenshot)](https://runelite.net/plugin-hub)
+[![License](https://img.shields.io/github/license/dave-kramer/discord-screenshot)](https://github.com/dave-kramer/discord-screenshot/blob/main/LICENSE)
 
 > Take a screenshot in RuneLite and instantly send it to your Discord server!
 
@@ -19,9 +20,15 @@ Discord Screenshot allows RuneLite users to take a screenshot anywhere, anytime 
 Want to show your inventory to your friends? Want to show off your Combat Achievements? Quests? Skills? Now just in one-click!
 
 ## Features
-| Option            | Information | Default |
-| ------------- | ------------- |---------|
-| Hotkey            | Set a hotkey to take a screenshot & send | Not Set |
+| Option          | Information                       | Default |
+|-----------------|-----------------------------------|-----|
+| Save Screenshot | Saves screenshot locally.         | On  |
+| Hide Chat       | Hides the chatbox from screenshot. | Off |
+| Hide PMs        | Hides private messages from screenshot. | On  |
+| Make Sound      | Make sound when screenshot taken. | On  |
+| Volume          | Screenshot sound effect volume    | 70  |
+| Hotkey          | Set a hotkey to take a screenshot & send. | Not Set |
+
 
 ## Installation
 ### Installing Discord Screenshot to RuneLite
@@ -49,6 +56,6 @@ Feel free to contact me with questions, my IGN is: **Alqon**
 - Logo made by [Effyeve](https://instagram.com/effyevee)
 
 ## Previews
-![s1](https://i.imgur.com/R4nfN7z.png)
+![s1](https://i.imgur.com/Jw9jiXq.png)
 ![s2](https://i.imgur.com/E0Fjhm6.png)
 ![s3](https://i.imgur.com/FXzDb3X.png)

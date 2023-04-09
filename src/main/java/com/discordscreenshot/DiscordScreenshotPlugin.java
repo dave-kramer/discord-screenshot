@@ -4,12 +4,15 @@ import com.google.common.base.Strings;
 import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.ImageCapture;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.input.KeyManager;
@@ -52,6 +55,12 @@ public class DiscordScreenshotPlugin extends Plugin
 
 	private NavigationButton discordScreenshotBtn;
 
+	@Inject
+	private ImageCapture imageCapture;
+
+	@Inject
+	private ClientThread clientThread;
+
 	@Provides
 	DiscordScreenshotConfig provideConfig(ConfigManager configManager)
 	{
@@ -93,12 +102,10 @@ public class DiscordScreenshotPlugin extends Plugin
 
 	private void sendMessage()
 	{
-		if (client.getLocalPlayer() == null)
-		{
-			return;
-		}
-		String discordString = "Screenshot from " + client.getLocalPlayer().getName();
+		if (client.getGameState() == GameState.LOGIN_SCREEN || client.getLocalPlayer() == null) { return; }
+		if (config.soundScreenshot()) { clientThread.invoke(() -> client.playSoundEffect(2419, config.volumeSound())); }
 
+		String discordString = "Screenshot from " + client.getLocalPlayer().getName();
 		DiscordScreenshotBody discordScreenshotBody = new DiscordScreenshotBody();
 		discordScreenshotBody.setContent(discordString);
 		sendWebhook(discordScreenshotBody);
@@ -108,6 +115,8 @@ public class DiscordScreenshotPlugin extends Plugin
 	{
 		String discordUrl = config.webhook();
 		if (Strings.isNullOrEmpty(discordUrl)) { return; }
+		if (config.hidePrivate()) { client.getWidget(10682368).setHidden(true); }
+		if (config.hideChat()) { client.getWidget(10616866).setHidden(true); }
 
 		HttpUrl url = HttpUrl.parse(discordUrl);
 		MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
@@ -132,6 +141,8 @@ public class DiscordScreenshotPlugin extends Plugin
 				log.warn("Error converting the image to byte array", e);
 				return;
 			}
+
+			if (config.saveScreenshot()) { imageCapture.takeScreenshot(bufferedImage, "DiscordScreenshot", "DiscordScreenshot",  false, null); }
 
 			requestBodyBuilder.addFormDataPart("file", "image.png",
 					RequestBody.create(MediaType.parse("image/png"), imageBytes));
@@ -164,12 +175,16 @@ public class DiscordScreenshotPlugin extends Plugin
 			public void onFailure(Call call, IOException e)
 			{
 				log.debug("Error submitting to the webhook", e);
+				client.getWidget(10682368).setHidden(false);
+				client.getWidget(10616866).setHidden(false);
 			}
 
 			@Override
 			public void onResponse(Call call, Response response) throws IOException
 			{
 				response.close();
+				client.getWidget(10682368).setHidden(false);
+				client.getWidget(10616866).setHidden(false);
 			}
 		});
 	}
