@@ -1,6 +1,7 @@
 package com.discordscreenshot;
 
 import net.runelite.client.config.*;
+import java.awt.*;
 
 @ConfigGroup("discord-screenshot")
 public interface DiscordScreenshotConfig extends Config
@@ -88,4 +89,82 @@ public interface DiscordScreenshotConfig extends Config
 			position = 4
 	)
 	String webhook();
+
+	@ConfigSection(
+			name = "Overlay Settings",
+			description = "Custom Overlay",
+			position = 3,
+			closedByDefault = false
+	)
+	String OverlayConfig = "OverlayConfig";
+
+	@ConfigItem(
+			keyName = "overlay",
+			name = "Display Overlay",
+			description = "Displays the custom overlay on your game screen.",
+			section = OverlayConfig,
+			position = 1
+	)
+	default boolean overlay()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "dateTime",
+			name = "Date & Time",
+			description = "Adds the date and time to the custom overlay.",
+			section = OverlayConfig,
+			position = 2
+	)
+	default boolean dateTime()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "customText",
+			name = "Custom Text",
+			description = "Adds the text to the custom overlay.",
+			section = OverlayConfig,
+			position = 3
+	)
+	default String customText()
+	{
+		return "";
+	}
+
+	@Range(min = 10, max = 100)
+	@ConfigItem(
+			keyName = "textWidth",
+			name = "Text Width",
+			description = "Space width between custom text and date & time.",
+			section = OverlayConfig,
+			position = 4
+	)
+	default int textWidth() { return 10; }
+
+	@ConfigItem(
+			keyName = "TextColor",
+			name = "Text Color",
+			description = "Configure the color of the custom overlay text.",
+			section = OverlayConfig,
+			position = 5
+	)
+	default Color textColor()
+	{
+		return Color.WHITE;
+	}
+
+	@ConfigItem(
+			keyName = "dateTimeColor",
+			name = "Date & time Color",
+			description = "Configure the color of date & time",
+			section = OverlayConfig,
+			position = 6
+	)
+	default Color dateTimeColor()
+	{
+		return Color.YELLOW;
+	}
 }

@@ -16,6 +16,7 @@ import net.runelite.client.util.ImageCapture;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.input.KeyManager;
+import net.runelite.client.ui.overlay.OverlayManager;
 import okhttp3.*;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
@@ -61,6 +62,12 @@ public class DiscordScreenshotPlugin extends Plugin
 	@Inject
 	private ClientThread clientThread;
 
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private DiscordScreenshotOverlay overlay;
+
 	@Provides
 	DiscordScreenshotConfig provideConfig(ConfigManager configManager)
 	{
@@ -71,6 +78,7 @@ public class DiscordScreenshotPlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		keyManager.registerKeyListener(hotkeyListener);
+		overlayManager.add(overlay);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/discord-screenshot.png");
 
@@ -89,6 +97,7 @@ public class DiscordScreenshotPlugin extends Plugin
 	{
 		clientToolbar.removeNavigation(discordScreenshotBtn);
 		keyManager.unregisterKeyListener(hotkeyListener);
+		overlayManager.remove(overlay);
 	}
 
 	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.hotkey())
