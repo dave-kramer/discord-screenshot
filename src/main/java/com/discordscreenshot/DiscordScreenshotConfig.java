@@ -26,7 +26,7 @@ public interface DiscordScreenshotConfig extends Config
 	@ConfigItem(
 			keyName = "hideChat",
 			name = "Hide Chat",
-			description = "Hides the chatbox from screenshot",
+			description = "Hides the chat box from screenshot",
 			section = DiscordConfig,
 			position = 2
 	)
@@ -63,7 +63,7 @@ public interface DiscordScreenshotConfig extends Config
 
 	@ConfigItem(
 			keyName = "hotkey",
-			name = "Screenshot Hotkey",
+			name = "Main Screenshot Hotkey",
 			description = "Set a hotkey for taking a screenshot & sending to discord.",
 			section = DiscordConfig,
 			position = 6
@@ -74,27 +74,36 @@ public interface DiscordScreenshotConfig extends Config
 	}
 
 	@ConfigSection(
-			name = "Discord Webhook Settings",
+			name = "Main Webhook",
 			description = "The config for webhook content notifications",
-			position = 3,
+			position = 0,
 			closedByDefault = false
 	)
 	String DiscordHookConfig = "DiscordHookConfig";
+
+	@ConfigItem(
+			keyName = "disclaimer",
+			name = "Hover here for more info",
+			description = "Left-clicking the Discord Screenshot icon will sent to this webhook.",
+			section = DiscordHookConfig,
+			position = 1
+	)
+	default void disclaimer() {}
 
 	@ConfigItem(
 			keyName = "webhook",
 			name = "Webhook URL",
 			description = "The Discord Webhook URL to send messages to.",
 			section = DiscordHookConfig,
-			position = 4
+			position = 2
 	)
 	String webhook();
 
 	@ConfigSection(
 			name = "Overlay Settings",
 			description = "Custom Overlay",
-			position = 3,
-			closedByDefault = false
+			position = 0,
+			closedByDefault = true
 	)
 	String OverlayConfig = "OverlayConfig";
 
@@ -167,4 +176,167 @@ public interface DiscordScreenshotConfig extends Config
 	{
 		return Color.YELLOW;
 	}
+
+	@ConfigSection(
+			name = "Webhook 2",
+			description = "An extra webhook",
+			position = 0,
+			closedByDefault = true
+	)
+	String Webhook2Config = "Webhook2Config";
+
+	@ConfigItem(
+			keyName = "disclaimer2",
+			name = "Hover here for more info",
+			description = "Right-click the Discord Screenshot icon will sent to this webhook.",
+			section = Webhook2Config,
+			position = 1
+	)
+	default void disclaimer2() {}
+
+	@ConfigItem(
+			keyName = "webhook 2",
+			name = "Webhook 2 Name",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook2Config,
+			position = 2
+	)
+	default String webhookName2() { return "Webhook 2"; }
+
+	@ConfigItem(
+			keyName = "webhook2",
+			name = "Webhook 2 URL",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook2Config,
+			position = 3
+	)
+	String webhook2();
+
+	@ConfigItem(
+			keyName = "hotkey2",
+			name = "Webhook 2 Hotkey",
+			description = "Set a hotkey for taking a screenshot & sending to discord.",
+			section = Webhook2Config,
+			position = 4
+	)
+	default Keybind hotkey2()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigSection(
+			name = "Webhook 3",
+			description = "An extra webhook",
+			position = 0,
+			closedByDefault = true
+	)
+	String Webhook3Config = "Webhook3Config";
+
+	@ConfigItem(
+			keyName = "webhook 3",
+			name = "Webhook 3 Name",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook3Config,
+			position = 1
+	)
+	default String webhookName3()  { return "Webhook 3"; }
+
+	@ConfigItem(
+			keyName = "webhook3",
+			name = "Webhook 3 URL",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook3Config,
+			position = 2
+	)
+	String webhook3();
+
+	@ConfigItem(
+			keyName = "hotkey3",
+			name = "Webhook 3 Hotkey",
+			description = "Set a hotkey for taking a screenshot & sending to discord.",
+			section = Webhook3Config,
+			position = 3
+	)
+	default Keybind hotkey3()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigSection(
+			name = "Webhook 4",
+			description = "An extra webhook",
+			position = 0,
+			closedByDefault = true
+	)
+	String Webhook4Config = "Webhook4Config";
+
+	@ConfigItem(
+			keyName = "webhook 4",
+			name = "Webhook 4 Name",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook4Config,
+			position = 1
+	)
+	default String webhookName4()  { return "Webhook 4"; }
+
+	@ConfigItem(
+			keyName = "webhook4",
+			name = "Webhook 4 URL",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook4Config,
+			position = 2
+	)
+	String webhook4();
+
+	@ConfigItem(
+			keyName = "hotkey4",
+			name = "Webhook 4 Hotkey",
+			description = "Set a hotkey for taking a screenshot & sending to discord.",
+			section = Webhook4Config,
+			position = 3
+	)
+	default Keybind hotkey4()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigSection(
+			name = "Webhook 5",
+			description = "An extra webhook",
+			position = 0,
+			closedByDefault = true
+	)
+	String Webhook5Config = "Webhook5Config";
+
+	@ConfigItem(
+			keyName = "webhook 5",
+			name = "Webhook 5 Name",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook5Config,
+			position = 1
+	)
+	default String webhookName5()  { return "Webhook 5"; }
+
+	@ConfigItem(
+			keyName = "webhook5",
+			name = "Webhook 5 URL",
+			description = "The Discord Webhook URL to send messages to.",
+			section = Webhook5Config,
+			position = 2
+	)
+	String webhook5();
+
+	@ConfigItem(
+			keyName = "hotkey5",
+			name = "Webhook 5 Hotkey",
+			description = "Set a hotkey for taking a screenshot & sending to discord.",
+			section = Webhook5Config,
+			position = 3
+	)
+	default Keybind hotkey5()
+	{
+		return Keybind.NOT_SET;
+	}
 }
+
+
