@@ -105,11 +105,11 @@ public class DiscordScreenshotPlugin extends Plugin
 	protected void shutDown() throws Exception
 	{
 		clientToolbar.removeNavigation(discordScreenshotBtn);
-		keyManager.registerKeyListener(hotkeyListener);
-		keyManager.registerKeyListener(hotkeyListener2);
-		keyManager.registerKeyListener(hotkeyListener3);
-		keyManager.registerKeyListener(hotkeyListener4);
-		keyManager.registerKeyListener(hotkeyListener5);
+		keyManager.unregisterKeyListener(hotkeyListener);
+		keyManager.unregisterKeyListener(hotkeyListener2);
+		keyManager.unregisterKeyListener(hotkeyListener3);
+		keyManager.unregisterKeyListener(hotkeyListener4);
+		keyManager.unregisterKeyListener(hotkeyListener5);
 		overlayManager.remove(overlay);
 	}
 
