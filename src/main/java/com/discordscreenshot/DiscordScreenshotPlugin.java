@@ -124,7 +124,6 @@ public class DiscordScreenshotPlugin extends Plugin
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/discord-screenshot.png");
 
 		discordScreenshotBtn = NavigationButton.builder()
-				.tab(false)
 				.tooltip("Send screenshot to " + config.webhook())
 				.icon(icon)
 				.onClick(() -> setSelectedWebhookUrl(config.webhook()))
