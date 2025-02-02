@@ -1,7 +1,7 @@
 # Discord Screenshot
 
-[![Active Installs](http://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/Alqon)
-[![Plugin Rank](http://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/rank/plugin/discord-screenshot)](https://runelite.net/plugin-hub)
+[![Active Installs](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/Alqon)
+[![Plugin Rank](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/discord-screenshot)](https://runelite.net/plugin-hub)
 [![License](https://img.shields.io/github/license/dave-kramer/discord-screenshot)](https://github.com/dave-kramer/discord-screenshot/blob/main/LICENSE)
 
 > Take a screenshot in RuneLite and instantly send it to your Discord server!
