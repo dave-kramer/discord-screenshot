@@ -1,59 +1,58 @@
 package com.discordscreenshot;
 
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import javax.inject.Inject;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
-import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
-import java.awt.*;
-import javax.inject.Inject;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
-import java.util.List;
 
-public class DiscordScreenshotOverlay extends OverlayPanel {
+public class DiscordScreenshotOverlay extends OverlayPanel
+{
+	private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-    @Inject
-    private DiscordScreenshotConfig config;
+	private final DiscordScreenshotConfig config;
 
-    @Inject
-    private DiscordScreenshotOverlay() { setPosition(OverlayPosition.TOP_CENTER); }
+	@Inject
+	private DiscordScreenshotOverlay(DiscordScreenshotConfig config)
+	{
+		this.config = config;
+		setPosition(OverlayPosition.TOP_CENTER);
+	}
 
-    public static String localTime()
-    {
-        Date date = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+	static String utcTime()
+	{
+		return FORMAT.format(ZonedDateTime.now(ZoneOffset.UTC)) + " UTC";
+	}
 
-        return sdf.format(date) + " UTC";
-    }
+	@Override
+	public Dimension render(Graphics2D graphics)
+	{
+		final String customText = config.customText() == null ? "" : config.customText().trim();
+		if (!config.overlay() || customText.isEmpty())
+		{
+			return null;
+		}
 
-    @Override
-    public Dimension render(Graphics2D graphics)
-    {
-        String customText = config.customText();
-        Color textColor = config.textColor();
-        Color dateTimeColor = config.dateTimeColor();
+		final LineComponent.LineComponentBuilder line = LineComponent.builder()
+			.left(customText)
+			.leftColor(config.textColor());
 
-        if (!customText.equals(" ") && !customText.equals("  ") && config.overlay())
-        {
-            panelComponent.getChildren().add(LineComponent.builder()
-                    .left(customText)
-                    .leftColor(textColor)
-                    .build());
+		String measured = customText;
+		if (config.dateTime())
+		{
+			final String time = utcTime();
+			line.right(time).rightColor(config.dateTimeColor());
+			measured = customText + " " + time;
+		}
 
-            if (config.dateTime())
-            {
-                customText = customText + " " + localTime();
-                List<LayoutableRenderableEntity> e = panelComponent.getChildren();
+		panelComponent.getChildren().add(line.build());
+		panelComponent.setPreferredSize(new Dimension(
+			graphics.getFontMetrics().stringWidth(measured) + config.textWidth(), 0));
 
-                ((LineComponent) e.get(0)).setRight(localTime());
-                ((LineComponent) e.get(0)).setRightColor(dateTimeColor);
-            }
-
-            panelComponent.setPreferredSize(new Dimension(graphics.getFontMetrics().stringWidth(customText) + config.textWidth(), 0));
-        }
-
-        return super.render(graphics);
-    }
+		return super.render(graphics);
+	}
 }

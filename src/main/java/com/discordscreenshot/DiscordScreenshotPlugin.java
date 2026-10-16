@@ -1,55 +1,108 @@
 package com.discordscreenshot;
 
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import com.google.inject.Provides;
-import com.google.common.collect.ImmutableMap;
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.client.callback.ClientThread;
-import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.ui.DrawManager;
-import net.runelite.client.util.HotkeyListener;
-import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.ImageCapture;
-import net.runelite.client.ui.NavigationButton;
-import net.runelite.client.ui.ClientToolbar;
-import net.runelite.client.input.KeyManager;
-import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.util.LinkBrowser;
-import net.runelite.client.events.ConfigChanged;
-import static net.runelite.client.RuneLite.SCREENSHOT_DIR;
-import okhttp3.*;
-import javax.imageio.ImageIO;
-import javax.inject.Inject;
+import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
+import java.net.SocketTimeoutException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import javax.swing.SwingUtilities;
+import javax.imageio.ImageIO;
+import javax.inject.Inject;
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.ConfigManager;
+import net.runelite.client.config.Keybind;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.input.KeyManager;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.DrawManager;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.util.HotkeyListener;
+import net.runelite.client.util.ImageCapture;
+import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.LinkBrowser;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static net.runelite.http.api.RuneLiteAPI.GSON;
+import static net.runelite.client.RuneLite.SCREENSHOT_DIR;
 
 @PluginDescriptor(
-		name = "Discord Screenshot",
-		description = "Take a screenshot & send it to Discord!",
-		tags = {"discord", "screenshot", "photo", "screen", "instant"}
+	name = "Discord Screenshot",
+	description = "Take a screenshot & send it to Discord!",
+	tags = {"discord", "screenshot", "photo", "screen", "instant"}
 )
-@Slf4j
-
 public class DiscordScreenshotPlugin extends Plugin
 {
+	private static final Logger log = LoggerFactory.getLogger(DiscordScreenshotPlugin.class);
+
+	private static final int SCREENSHOT_SOUND_ID = 2419;
+	private static final long COOLDOWN_MS = 2000;
+	private static final long UPLOAD_TIMEOUT_SECONDS = 60;
+	/** If the frame we are waiting for never arrives, put the interface back after this long. */
+	private static final long RESTORE_TIMEOUT_SECONDS = 5;
+	/**
+	 * Frames to let pass after hiding widgets, before the one we capture. Widgets are only
+	 * re-drawn on the next draw, so the very first frame can still contain the old state.
+	 */
+	private static final int FRAMES_TO_SKIP = 1;
+	/** Discord's webhook upload limit is 8 MB on the lowest tier, stay a bit under it. */
+	private static final int MAX_UPLOAD_BYTES = 7_500_000;
+	private static final MediaType PNG = MediaType.parse("image/png");
+	private static final MediaType JPEG = MediaType.parse("image/jpeg");
 
 	@Inject
 	private Client client;
+
+	@Inject
+	private ClientThread clientThread;
 
 	@Inject
 	private DiscordScreenshotConfig config;
 
 	@Inject
 	private OkHttpClient okHttpClient;
+
+	/**
+	 * RuneLite's shared client uses OkHttp's 10 second defaults. A big PNG plus a slow Discord
+	 * response (or other plugins, e.g. Dink, uploading over the same connection) easily takes longer.
+	 * newBuilder() keeps sharing RuneLite's connection pool and thread pool.
+	 */
+	private OkHttpClient uploadClient;
+
+	@Inject
+	private Gson gson;
 
 	@Inject
 	private DrawManager drawManager;
@@ -60,13 +113,8 @@ public class DiscordScreenshotPlugin extends Plugin
 	@Inject
 	private KeyManager keyManager;
 
-	private NavigationButton discordScreenshotBtn;
-
 	@Inject
 	private ImageCapture imageCapture;
-
-	@Inject
-	private ClientThread clientThread;
 
 	@Inject
 	private OverlayManager overlayManager;
@@ -75,13 +123,47 @@ public class DiscordScreenshotPlugin extends Plugin
 	private DiscordScreenshotOverlay overlay;
 
 	@Inject
-	private ConfigManager configManager;
+	private ScheduledExecutorService executor;
 
-	private long lastButtonClickTime = 0;
+	private final List<HotkeyListener> hotkeyListeners = new ArrayList<>();
 
-	private static final long coolDownMS = 2000;
+	/** True from the moment a capture is requested until the interface has been restored. */
+	private final AtomicBoolean busy = new AtomicBoolean();
 
-	private String selectedWebhookUrl;
+	@Inject
+	private WebhookStore webhookStore;
+
+	private DiscordScreenshotPanel panel;
+
+	/**
+	 * Top toolbar icon: left-click sends to the default webhook, right-click lists the others.
+	 * RuneLite copies a toolbar button's right-click menu once, when the button is added, so this
+	 * button is re-created whenever the webhooks change. Swing thread only after startUp.
+	 */
+	private volatile NavigationButton toolbarButton;
+
+	private BufferedImage icon;
+
+	/** Sidebar tab with the webhook manager. */
+	private NavigationButton sidebarButton;
+
+	/**
+	 * Right-click menu shared by both buttons. RuneLite reads it when the menu is opened, so it is
+	 * refreshed in place instead of re-creating the buttons (which would close the panel mid-edit).
+	 */
+	private final Map<String, Runnable> popup = new LinkedHashMap<>();
+
+	private long lastCaptureMs;
+
+	/** Widgets this plugin hid and still has to show again. Only touched on the client thread. */
+	private final List<Integer> hiddenByUs = new ArrayList<>();
+
+	/** Bumped whenever a capture ends, so late callbacks of an old capture can tell they are stale. */
+	private int generation;
+
+	/** The every-frame listener of the capture in progress, if any. Client thread only. */
+	private Runnable frameWaiter;
+
 	@Provides
 	DiscordScreenshotConfig provideConfig(ConfigManager configManager)
 	{
@@ -89,243 +171,409 @@ public class DiscordScreenshotPlugin extends Plugin
 	}
 
 	@Override
-	protected void startUp() throws Exception
+	protected void startUp()
 	{
-		keyManager.registerKeyListener(hotkeyListener);
-		keyManager.registerKeyListener(hotkeyListener2);
-		keyManager.registerKeyListener(hotkeyListener3);
-		keyManager.registerKeyListener(hotkeyListener4);
-		keyManager.registerKeyListener(hotkeyListener5);
+		webhookStore.migrateIfNeeded();
+
+		uploadClient = okHttpClient.newBuilder()
+			.writeTimeout(UPLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+			.readTimeout(UPLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+			.build();
+
 		overlayManager.add(overlay);
 		SCREENSHOT_DIR.mkdirs();
-		updateDiscordScreenshotButton();
+		rebuildHotkeys();
+
+		panel = new DiscordScreenshotPanel(webhookStore, this::capture);
+		icon = ImageUtil.loadImageResource(getClass(), "/discord-screenshot.png");
+
+		final Map<String, Runnable> items = popupItems();
+		popup.putAll(items);
+		toolbarButton = buildToolbarButton(items);
+
+		sidebarButton = NavigationButton.builder()
+			.tooltip("Discord Screenshot")
+			.icon(icon)
+			.priority(9)
+			.panel(panel)
+			.popup(popup)
+			.build();
+
+		clientToolbar.addNavigation(toolbarButton);
+		clientToolbar.addNavigation(sidebarButton);
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
-		clientToolbar.removeNavigation(discordScreenshotBtn);
-		keyManager.unregisterKeyListener(hotkeyListener);
-		keyManager.unregisterKeyListener(hotkeyListener2);
-		keyManager.unregisterKeyListener(hotkeyListener3);
-		keyManager.unregisterKeyListener(hotkeyListener4);
-		keyManager.unregisterKeyListener(hotkeyListener5);
+		// Clear the field first, so a pending menu refresh will not add a new toolbar button
+		final NavigationButton toolbar = toolbarButton;
+		toolbarButton = null;
+		clientToolbar.removeNavigation(toolbar);
+		clientToolbar.removeNavigation(sidebarButton);
+		sidebarButton = null;
+		panel = null;
+		hotkeyListeners.forEach(keyManager::unregisterKeyListener);
+		hotkeyListeners.clear();
 		overlayManager.remove(overlay);
-	}
-
-	private void updateDiscordScreenshotButton() {
-		if (discordScreenshotBtn != null) {
-			clientToolbar.removeNavigation(discordScreenshotBtn);
-			discordScreenshotBtn = null;
-		}
-
-		checkWebhookNames();
-
-		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/discord-screenshot.png");
-
-		discordScreenshotBtn = NavigationButton.builder()
-				.tooltip("Send screenshot to " + config.webhook())
-				.icon(icon)
-				.onClick(() -> setSelectedWebhookUrl(config.webhook()))
-				.popup(ImmutableMap
-						.<String, Runnable>builder()
-						.put(config.webhookName2(), () -> setSelectedWebhookUrl(config.webhook2()))
-						.put(config.webhookName3(), () -> setSelectedWebhookUrl(config.webhook3()))
-						.put(config.webhookName4(), () -> setSelectedWebhookUrl(config.webhook4()))
-						.put(config.webhookName5(), () -> setSelectedWebhookUrl(config.webhook5()))
-						.put("Open screenshot folder", () ->
-						{
-							LinkBrowser.open(SCREENSHOT_DIR.toString());
-						})
-						.build())
-				.build();
-
-		clientToolbar.addNavigation(discordScreenshotBtn);
-	}
-
-	private void setSelectedWebhookUrl(String webhookUrl) {
-		this.selectedWebhookUrl = webhookUrl;
-		sendMessage();
+		clientThread.invoke(this::finishCapture);
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		updateDiscordScreenshotButton();
+		// This event fires for every plugin's config, only react to ours
+		if (WebhookStore.GROUP.equals(event.getGroup()))
+		{
+			rebuildHotkeys();
+			refreshPopup();
+		}
 	}
 
-	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.hotkey())
+	// ---------------------------------------------------------------- hotkeys & right-click menu
+
+	private void rebuildHotkeys()
 	{
-		@Override
-		public void hotkeyPressed()
+		hotkeyListeners.forEach(keyManager::unregisterKeyListener);
+		hotkeyListeners.clear();
+
+		final HotkeyListener main = new HotkeyListener(config::hotkey)
 		{
-			setSelectedWebhookUrl(config.webhook());
-		}
-	};
-	private final HotkeyListener hotkeyListener2 = new HotkeyListener(() -> config.hotkey2())
-	{
-		@Override
-		public void hotkeyPressed()
-		{
-			setSelectedWebhookUrl(config.webhook2());
-		}
-	};
-	private final HotkeyListener hotkeyListener3 = new HotkeyListener(() -> config.hotkey3())
-	{
-		@Override
-		public void hotkeyPressed()
-		{
-			setSelectedWebhookUrl(config.webhook3());
-		}
-	};
-	private final HotkeyListener hotkeyListener4 = new HotkeyListener(() -> config.hotkey4())
-	{
-		@Override
-		public void hotkeyPressed()
-		{
-			setSelectedWebhookUrl(config.webhook4());
-		}
-	};
-
-	private final HotkeyListener hotkeyListener5 = new HotkeyListener(() -> config.hotkey5())
-	{
-		@Override
-		public void hotkeyPressed()
-		{
-			setSelectedWebhookUrl(config.webhook5());
-		}
-	};
-
-	private void sendMessage() {
-		long currentTime = System.currentTimeMillis();
-		if (currentTime - lastButtonClickTime < coolDownMS) { return; }
-		lastButtonClickTime = currentTime;
-
-		if (client.getGameState() == GameState.LOGIN_SCREEN || client.getLocalPlayer() == null) { return; }
-		if (config.soundScreenshot()) { clientThread.invoke(() -> client.playSoundEffect(2419, config.volumeSound())); }
-
-		String discordString = "Screenshot from " + client.getLocalPlayer().getName();
-		DiscordScreenshotBody discordScreenshotBody = new DiscordScreenshotBody();
-		discordScreenshotBody.setContent(discordString);
-		sendWebhook(discordScreenshotBody);
-	}
-
-	private void sendWebhook(DiscordScreenshotBody discordScreenshotBody)
-	{
-		String discordUrl = selectedWebhookUrl;
-		if (Strings.isNullOrEmpty(discordUrl)) { return; }
-		if (config.hidePrivate()) { client.getWidget(10682368).setHidden(true); }
-		if (config.hideChat()) { client.getWidget(10616866).setHidden(true); }
-
-		HttpUrl url = HttpUrl.parse(discordUrl);
-		MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
-				.setType(MultipartBody.FORM)
-				.addFormDataPart("payload_json", GSON.toJson(discordScreenshotBody));
-
-		screenshotConvert(url, requestBodyBuilder);
-	}
-
-	private void screenshotConvert(HttpUrl url, MultipartBody.Builder requestBodyBuilder)
-	{
-		drawManager.requestNextFrameListener(image ->
-		{
-			BufferedImage bufferedImage = (BufferedImage) image;
-			byte[] imageBytes;
-			try
+			@Override
+			public void hotkeyPressed()
 			{
-				imageBytes = convertImageToByteArray(bufferedImage);
+				captureDefault();
 			}
-			catch (IOException e)
+		};
+		hotkeyListeners.add(main);
+		keyManager.registerKeyListener(main);
+		for (Webhook webhook : webhookStore.load())
+		{
+			addHotkey(webhook::getHotkey, webhook::getUrl);
+		}
+	}
+
+	private void addHotkey(Supplier<Keybind> key, Supplier<String> url)
+	{
+		HotkeyListener listener = new HotkeyListener(key)
+		{
+			@Override
+			public void hotkeyPressed()
 			{
-				log.warn("Error converting the image to byte array", e);
-				return;
+				capture(url.get());
 			}
+		};
+		hotkeyListeners.add(listener);
+		keyManager.registerKeyListener(listener);
+	}
 
-			if (config.saveScreenshot()) { imageCapture.takeScreenshot(bufferedImage, "DiscordScreenshot", "DiscordScreenshot",  false, null); }
+	private NavigationButton buildToolbarButton(Map<String, Runnable> items)
+	{
+		return NavigationButton.builder()
+			// The webhook URL is a secret, never put it in a tooltip
+			.tooltip("Send screenshot to Discord")
+			.icon(icon)
+			.onClick(this::captureDefault)
+			// its own copy: the toolbar keeps the menu it was given
+			.popup(new LinkedHashMap<>(items))
+			.build();
+	}
 
-			requestBodyBuilder.addFormDataPart("file", "image.png",
-					RequestBody.create(MediaType.parse("image/png"), imageBytes));
-			buildRequestAndSend(url, requestBodyBuilder);
+	private void refreshPopup()
+	{
+		final Map<String, Runnable> items = popupItems();
+
+		// Applied on the Swing thread, where RuneLite reads the menus
+		SwingUtilities.invokeLater(() ->
+		{
+			// The sidebar tab reads this map each time it is right-clicked
+			popup.clear();
+			popup.putAll(items);
+
+			// The toolbar button copied its menu when it was added: swap it for a new one
+			final NavigationButton old = toolbarButton;
+			if (old == null)
+			{
+				return; // plugin is shutting down
+			}
+			toolbarButton = buildToolbarButton(items);
+			clientToolbar.removeNavigation(old);
+			clientToolbar.addNavigation(toolbarButton);
 		});
 	}
 
-	private static byte[] convertImageToByteArray(BufferedImage bufferedImage) throws IOException
+	private Map<String, Runnable> popupItems()
 	{
-		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-		ImageIO.write(bufferedImage, "png", byteArrayOutputStream);
-		return byteArrayOutputStream.toByteArray();
+		final Map<String, Runnable> items = new LinkedHashMap<>();
+		final Set<String> usedNames = new HashSet<>();
+		for (Webhook webhook : webhookStore.load())
+		{
+			if (Strings.isNullOrEmpty(webhook.getUrl()))
+			{
+				continue;
+			}
+
+			String name = webhook.getName().isEmpty() ? "Webhook" : webhook.getName();
+			for (int n = 2; !usedNames.add(name); n++)
+			{
+				name = webhook.getName() + " (" + n + ")";
+			}
+			items.put(name, () -> capture(webhook.getUrl()));
+		}
+		items.put("Open screenshot folder", () -> LinkBrowser.open(SCREENSHOT_DIR.toString()));
+		return items;
 	}
 
-	private void buildRequestAndSend(HttpUrl url, MultipartBody.Builder requestBodyBuilder)
+	// ---------------------------------------------------------------- capture
+
+	/** Left-click on the toolbar icon, or the default hotkey. Does nothing if no default is set. */
+	private void captureDefault()
 	{
-		RequestBody requestBody = requestBodyBuilder.build();
-		Request request = new Request.Builder()
-				.url(url)
-				.post(requestBody)
-				.build();
-		sendRequest(request);
+		capture(config.webhook());
 	}
 
-	private void sendRequest(Request request)
+	/** Entry point for the toolbar button and hotkeys. May be called from any thread. */
+	private void capture(String webhook)
 	{
-		okHttpClient.newCall(request).enqueue(new Callback()
+		if (Strings.isNullOrEmpty(webhook))
+		{
+			return;
+		}
+
+		final HttpUrl url = HttpUrl.parse(webhook.trim());
+		if (url == null)
+		{
+			clientThread.invoke(() -> gameMessage("Discord Screenshot: the webhook URL is not valid."));
+			return;
+		}
+
+		final long now = System.currentTimeMillis();
+		if (now - lastCaptureMs < COOLDOWN_MS || !busy.compareAndSet(false, true))
+		{
+			return;
+		}
+		lastCaptureMs = now;
+
+		// Everything that touches the client has to run on the client thread
+		clientThread.invoke(() ->
+		{
+			if (client.getGameState() == GameState.LOGIN_SCREEN || client.getLocalPlayer() == null)
+			{
+				busy.set(false);
+				return;
+			}
+
+			if (config.soundScreenshot())
+			{
+				client.playSoundEffect(SCREENSHOT_SOUND_ID, config.volumeSound());
+			}
+
+			final String playerName = client.getLocalPlayer().getName();
+			final int gen = ++generation;
+			hideWidgets();
+
+			// Safety net: whatever happens, never leave the player's chat hidden
+			executor.schedule(() -> clientThread.invoke(() ->
+			{
+				if (gen == generation)
+				{
+					finishCapture();
+					gameMessage("Discord Screenshot: the game did not provide a frame to capture. "
+						+ "Another plugin may be interfering, try turning off GPU or screenshot-related plugins.");
+				}
+			}), RESTORE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+			awaitFrame(hiddenByUs.isEmpty() ? 0 : FRAMES_TO_SKIP, image ->
+			{
+				if (gen != generation)
+				{
+					return; // timed out in the meantime, the interface is visible again
+				}
+				// Show the interface again straight away, we have the pixels now
+				finishCapture();
+				executor.submit(() ->
+				{
+					try
+					{
+						process(url, playerName, (BufferedImage) image);
+					}
+					catch (RuntimeException e)
+					{
+						log.warn("Unexpected error while sending the screenshot", e);
+						clientThread.invoke(() -> gameMessage("Discord Screenshot: something went wrong, see the RuneLite log."));
+					}
+				});
+			});
+		});
+	}
+
+	/** Runs {@code consumer} with the frame that is drawn after {@code skip} further frames. */
+	private void awaitFrame(int skip, Consumer<Image> consumer)
+	{
+		final int[] remaining = {skip};
+		final Runnable[] self = new Runnable[1];
+		self[0] = () ->
+		{
+			if (remaining[0]-- > 0)
+			{
+				return;
+			}
+			drawManager.unregisterEveryFrameListener(self[0]);
+			frameWaiter = null;
+			// every-frame listeners run before the next-frame queue, so this is delivered this frame
+			drawManager.requestNextFrameListener(consumer);
+		};
+		frameWaiter = self[0];
+		drawManager.registerEveryFrameListener(self[0]);
+	}
+
+	// ---------------------------------------------------------------- hiding
+
+	/** Client thread only. */
+	private void hideWidgets()
+	{
+		if (config.hidePrivate())
+		{
+			hide(InterfaceID.PmChat.CONTAINER);
+		}
+		if (config.hideChat())
+		{
+			hide(InterfaceID.Chatbox.CHATAREA);
+		}
+	}
+
+	private void hide(int widgetId)
+	{
+		Widget widget = client.getWidget(widgetId);
+		// Only touch what is visible, so we never "restore" something that was hidden before us
+		if (widget != null && !widget.isSelfHidden())
+		{
+			widget.setHidden(true);
+			hiddenByUs.add(widgetId);
+		}
+	}
+
+	/** Client thread only. Ends the current capture, if any: shows the interface again, frees the lock. */
+	private void finishCapture()
+	{
+		generation++;
+		if (frameWaiter != null)
+		{
+			drawManager.unregisterEveryFrameListener(frameWaiter);
+			frameWaiter = null;
+		}
+		restoreWidgets();
+	}
+
+	/** Client thread only. Safe to call any number of times. */
+	private void restoreWidgets()
+	{
+		for (int widgetId : hiddenByUs)
+		{
+			Widget widget = client.getWidget(widgetId);
+			if (widget != null)
+			{
+				widget.setHidden(false);
+			}
+		}
+		hiddenByUs.clear();
+		busy.set(false);
+	}
+
+	// ---------------------------------------------------------------- encode & upload (off the client thread)
+
+	private void process(HttpUrl url, String playerName, BufferedImage image)
+	{
+		byte[] data;
+		String fileName = "image.png";
+		MediaType mediaType = PNG;
+		try
+		{
+			data = encode(image, "png");
+			if (data.length > MAX_UPLOAD_BYTES)
+			{
+				// Large or stretched clients can exceed Discord's upload limit as PNG, which makes the
+				// upload fail with HTTP 413. A JPEG of the same frame is far smaller.
+				data = encode(toRgb(image), "jpg");
+				fileName = "image.jpg";
+				mediaType = JPEG;
+			}
+		}
+		catch (IOException e)
+		{
+			log.warn("Could not encode the screenshot", e);
+			clientThread.invoke(() -> gameMessage("Discord Screenshot: could not encode the screenshot."));
+			return;
+		}
+
+		if (config.saveScreenshot())
+		{
+			imageCapture.saveScreenshot(image, "DiscordScreenshot", "DiscordScreenshot", false, false);
+		}
+
+		Map<String, Object> payload = new LinkedHashMap<>();
+		payload.put("content", "Screenshot from " + (playerName == null ? "unknown" : playerName));
+
+		RequestBody body = new MultipartBody.Builder()
+			.setType(MultipartBody.FORM)
+			.addFormDataPart("payload_json", gson.toJson(payload))
+			.addFormDataPart("file", fileName, RequestBody.create(mediaType, data))
+			.build();
+
+		uploadClient.newCall(new Request.Builder().url(url).post(body).build()).enqueue(new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
 			{
-				log.debug("Error submitting to the webhook", e);
-				client.getWidget(10682368).setHidden(false);
-				client.getWidget(10616866).setHidden(false);
+				log.warn("Error submitting to the webhook", e);
+				clientThread.invoke(() -> gameMessage(e instanceof SocketTimeoutException
+					// The upload may well have arrived, Discord just did not answer in time
+					? "Discord Screenshot: Discord took too long to respond, check the channel before sending again."
+					: "Discord Screenshot: could not reach Discord."));
 			}
 
 			@Override
-			public void onResponse(Call call, Response response) throws IOException
+			public void onResponse(Call call, Response response)
 			{
-				response.close();
-				client.getWidget(10682368).setHidden(false);
-				client.getWidget(10616866).setHidden(false);
+				try (Response r = response)
+				{
+					if (!r.isSuccessful())
+					{
+						log.warn("Discord rejected the screenshot: HTTP {}", r.code());
+						clientThread.invoke(() -> gameMessage(r.code() == 429
+							? "Discord Screenshot: rate limited by Discord, try again in a moment."
+							: "Discord Screenshot: Discord rejected the screenshot (HTTP " + r.code() + ")."));
+					}
+				}
 			}
 		});
 	}
 
-	public void checkWebhookNames() {
-		String[] webhookNames = {
-				config.webhookName2(),
-				config.webhookName3(),
-				config.webhookName4(),
-				config.webhookName5()
-		};
-
-		String changedWebhookName = null;
-
-		for (int i = 0; i < webhookNames.length; i++) {
-			for (int j = i + 1; j < webhookNames.length; j++) {
-				if (webhookNames[i].equals(webhookNames[j])) {
-					changedWebhookName = webhookNames[i];
-					break;
-				}
-			}
-			if (changedWebhookName != null) {
-				break;
-			}
+	private static byte[] encode(BufferedImage image, String format) throws IOException
+	{
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		if (!ImageIO.write(image, format, out))
+		{
+			throw new IOException("No " + format + " writer available");
 		}
-
-		if (changedWebhookName != null) {
-			String defaultValue = generateUniqueValue(webhookNames, "DefaultValue");
-			int index = Arrays.asList(webhookNames).indexOf(changedWebhookName) + 2;
-			configManager.setConfiguration("discord-screenshot", "webhook " + index, defaultValue);
-		}
+		return out.toByteArray();
 	}
 
-	private String generateUniqueValue(String[] existingValues, String defaultValue) {
-		String uniqueValue = defaultValue;
-		int counter = 1;
+	/** JPEG has no alpha channel, writing an image that has one fails. */
+	private static BufferedImage toRgb(BufferedImage image)
+	{
+		BufferedImage rgb = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = rgb.createGraphics();
+		g.drawImage(image, 0, 0, null);
+		g.dispose();
+		return rgb;
+	}
 
-		while (Arrays.asList(existingValues).contains(uniqueValue)) {
-			uniqueValue = defaultValue + counter;
-			counter++;
+	private void gameMessage(String message)
+	{
+		if (client.getGameState() == GameState.LOGGED_IN)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
 		}
-
-		return uniqueValue;
 	}
 }

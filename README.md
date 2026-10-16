@@ -1,8 +1,7 @@
 # Discord Screenshot
 
-[![Active Installs](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/Alqon)
-[![Plugin Rank](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/discord-screenshot)](https://runelite.net/plugin-hub)
-[![License](https://img.shields.io/github/license/dave-kramer/discord-screenshot)](https://github.com/dave-kramer/discord-screenshot/blob/main/LICENSE)
+[![Active Installs](http://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/show/discord-screenshot)
+[![Plugin Rank](http://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/discord-screenshot)](https://runelite.net/plugin-hub/show/discord-screenshot)
 
 > Take a screenshot in RuneLite and instantly send it to your Discord server!
 
@@ -27,17 +26,23 @@ Want to show your inventory to your friends? Want to show off your Combat Achiev
 | Hide PMs               | Hides private messages from screenshot.                    | On         |
 | Make Sound             | Make sound when screenshot taken.                          | On         |
 | Volume                 | Screenshot sound effect volume.                            | 70         |
-| Main Screenshot Hotkey | Set a hotkey to take a screenshot & send.                  | Not Set    |
-| Webhook URL            | The Discord Webhook URL to send messages to.               | Empty      |
+| Default Webhook Hotkey | Hotkey that sends a screenshot to the default webhook.     | Not Set    |
+| Webhook URL            | The default webhook, used when left-clicking the icon.     | Empty      |
 | Display Overlay        | Displays the custom overlay with text on your game screen. | Off        |
 | Date & Time            | Adds the date and time to the custom overlay.              | On         |
 | Custom Text            | Adds the text to the custom overlay.                       | Empty      |
 | Text Width             | Space width between custom text and date & time.           | 10         |
 | Text Color             | Configure the color of the custom overlay text.            | White      |
 | Date & Time Color      | Configure the color of date & time.                        | Yellow     |
-| Webhook 2-5 Name       | Set name of webhooks 2 to 5.                               | Webhook2-5 |
-| Webhook 2-5 URL        | Webhooks 2 to 5 URL to send messages to.                   | Empty      |
-| Webhook 2-5 Hotkey     | Set hotkey of webhooks 2 to 5 to take a screenshot & send. | Not Set    |
+
+### Webhooks sidebar
+Open the **Discord Screenshot** tab in the RuneLite sidebar to manage your webhooks:
+- **Left-click** the Discord icon in the top bar to send to your **default webhook**.
+- **Right-click** the Discord icon to choose any of your other webhooks.
+- Press **+** to add as many webhooks as you like, each with its own name and optional hotkey.
+- Use **Send** on a webhook to take a screenshot and send it there right away.
+
+Webhooks 2 to 5 from older versions are moved into the sidebar automatically.
 
 
 ## Installation
@@ -62,10 +67,11 @@ Want to show your inventory to your friends? Want to show off your Combat Achiev
 8. Enjoy!
 
 ## Contact
-Feel free to contact me with questions, my IGN is: **Alqon**
+Feel free to contact me with questions, my IGN is: **Shinpei**
 - Logo made by [Effyeve](https://instagram.com/effyevee)
 
 ## Previews
-![s1](https://i.imgur.com/98uHkd6.png)
-![s2](https://i.imgur.com/YYNiQQl.png)
-![s3](https://i.imgur.com/FXzDb3X.png)
+![s1](https://i.imgur.com/gXFJdGt.png)
+![s2](https://i.imgur.com/z2rOXm9.png)
+![s3](https://i.imgur.com/YYNiQQl.png)
+![s4](https://i.imgur.com/FXzDb3X.png)
