@@ -43,7 +43,6 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageCapture;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.LinkBrowser;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
@@ -320,7 +319,6 @@ public class DiscordScreenshotPlugin extends Plugin
 			}
 			items.put(name, () -> capture(webhook.getUrl()));
 		}
-		items.put("Open screenshot folder", () -> LinkBrowser.open(SCREENSHOT_DIR.toString()));
 		return items;
 	}
 
