@@ -55,8 +55,6 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static net.runelite.client.RuneLite.SCREENSHOT_DIR;
-
 @PluginDescriptor(
 	name = "Discord Screenshot",
 	description = "Take a screenshot & send it to Discord!",
@@ -180,7 +178,6 @@ public class DiscordScreenshotPlugin extends Plugin
 			.build();
 
 		overlayManager.add(overlay);
-		SCREENSHOT_DIR.mkdirs();
 		rebuildHotkeys();
 
 		panel = new DiscordScreenshotPanel(webhookStore, this::capture);
