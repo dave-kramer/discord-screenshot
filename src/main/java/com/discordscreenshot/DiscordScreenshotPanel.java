@@ -83,7 +83,9 @@ class DiscordScreenshotPanel extends PluginPanel
 		JLabel help = new JLabel("<html>Click the <font color='#dc8a00'>Discord icon</font> in the<br>"
 			+ "top bar to send a screenshot.<br><br>"
 			+ "<font color='#ffffff'>Left-click</font>: default webhook<br>"
-			+ "<font color='#ffffff'>Right-click</font>: other webhooks</html>");
+			+ "<font color='#ffffff'>Right-click</font>: other webhooks<br><br>"
+			+ "Sidebar button can be turned<br>"
+			+ "off in settings.</html>");
 		help.setFont(FontManager.getRunescapeSmallFont());
 		help.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 

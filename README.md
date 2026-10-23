@@ -1,7 +1,8 @@
 # Discord Screenshot
 
-[![Active Installs](http://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/show/discord-screenshot)
-[![Plugin Rank](http://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/discord-screenshot)](https://runelite.net/plugin-hub/show/discord-screenshot)
+[![Active Installs](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/discord-screenshot)](https://runelite.net/plugin-hub/Shinpei)
+[![Plugin Rank](https://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/discord-screenshot)](https://runelite.net/plugin-hub)
+[![License](https://img.shields.io/github/license/dave-kramer/discord-screenshot)](https://github.com/dave-kramer/discord-screenshot/blob/main/LICENSE)
 
 > Take a screenshot in RuneLite and instantly send it to your Discord server!
 
@@ -22,6 +23,7 @@ Want to show your inventory to your friends? Want to show off your Combat Achiev
 | Option                 | Information                                                | Default    |
 |------------------------|------------------------------------------------------------|------------|
 | Save Screenshot        | Saves screenshot locally.                                  | On         |
+| Show Sidebar           | Shows the Discord Screenshot tab in the sidebar (webhooks).| On         |
 | Hide Chat              | Hides the chat box from screenshot.                        | Off        |
 | Hide PMs               | Hides private messages from screenshot.                    | On         |
 | Make Sound             | Make sound when screenshot taken.                          | On         |
@@ -71,7 +73,6 @@ Feel free to contact me with questions, my IGN is: **Shinpei**
 - Logo made by [Effyeve](https://instagram.com/effyevee)
 
 ## Previews
-![s1](https://i.imgur.com/gXFJdGt.png)
-![s2](https://i.imgur.com/z2rOXm9.png)
-![s3](https://i.imgur.com/YYNiQQl.png)
-![s4](https://i.imgur.com/FXzDb3X.png)
+![s1](https://i.imgur.com/98uHkd6.png)
+![s2](https://i.imgur.com/YYNiQQl.png)
+![s3](https://i.imgur.com/FXzDb3X.png)

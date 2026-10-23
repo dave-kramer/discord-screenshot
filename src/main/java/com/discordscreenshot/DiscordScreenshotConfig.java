@@ -24,11 +24,23 @@ public interface DiscordScreenshotConfig extends Config
 	default boolean saveScreenshot() { return true; }
 
 	@ConfigItem(
+			keyName = "showSidebar",
+			name = "Show Sidebar",
+			description = "Shows the Discord Screenshot tab in the RuneLite sidebar, used to add, rename and delete webhooks. The Discord icon in the top bar keeps working when this is off.",
+			section = DiscordConfig,
+			position = 2
+	)
+	default boolean showSidebar()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 			keyName = "hideChat",
 			name = "Hide Chat",
 			description = "Hides the chat box from the screenshot.",
 			section = DiscordConfig,
-			position = 2
+			position = 3
 	)
 	default boolean hideChat() { return false; }
 
@@ -37,7 +49,7 @@ public interface DiscordScreenshotConfig extends Config
 			name = "Hide PMs",
 			description = "Hides the private message popups from the screenshot.",
 			section = DiscordConfig,
-			position = 3
+			position = 4
 	)
 	default boolean hidePrivate() { return true; }
 
@@ -47,7 +59,7 @@ public interface DiscordScreenshotConfig extends Config
 			name = "Make Sound",
 			description = "Make sound when screenshot taken.",
 			section = DiscordConfig,
-			position = 4
+			position = 5
 	)
 	default boolean soundScreenshot() { return true; }
 
@@ -57,7 +69,7 @@ public interface DiscordScreenshotConfig extends Config
 			name = "Volume",
 			description = "Screenshot sound effect volume",
 			section = DiscordConfig,
-			position = 5
+			position = 6
 	)
 	default int volumeSound() { return 70; }
 
@@ -66,7 +78,7 @@ public interface DiscordScreenshotConfig extends Config
 			name = "Default Webhook Hotkey",
 			description = "Set a hotkey for taking a screenshot & sending to discord.",
 			section = DiscordConfig,
-			position = 6
+			position = 7
 	)
 	default Keybind hotkey()
 	{

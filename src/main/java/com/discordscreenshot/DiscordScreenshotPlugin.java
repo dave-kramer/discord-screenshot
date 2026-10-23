@@ -144,6 +144,9 @@ public class DiscordScreenshotPlugin extends Plugin
 	/** Sidebar tab with the webhook manager. */
 	private NavigationButton sidebarButton;
 
+	/** Whether the sidebar tab is currently added. Only changed on the Swing thread. */
+	private volatile boolean sidebarShown;
+
 	/**
 	 * Right-click menu shared by both buttons. RuneLite reads it when the menu is opened, so it is
 	 * refreshed in place instead of re-creating the buttons (which would close the panel mid-edit).
@@ -196,7 +199,8 @@ public class DiscordScreenshotPlugin extends Plugin
 			.build();
 
 		clientToolbar.addNavigation(toolbarButton);
-		clientToolbar.addNavigation(sidebarButton);
+		sidebarShown = false;
+		updateSidebar();
 	}
 
 	@Override
@@ -208,6 +212,7 @@ public class DiscordScreenshotPlugin extends Plugin
 		clientToolbar.removeNavigation(toolbar);
 		clientToolbar.removeNavigation(sidebarButton);
 		sidebarButton = null;
+		sidebarShown = false;
 		panel = null;
 		hotkeyListeners.forEach(keyManager::unregisterKeyListener);
 		hotkeyListeners.clear();
@@ -223,7 +228,32 @@ public class DiscordScreenshotPlugin extends Plugin
 		{
 			rebuildHotkeys();
 			refreshPopup();
+			updateSidebar();
 		}
+	}
+
+	/** Adds or removes the sidebar tab to match the "Show Sidebar" setting. */
+	private void updateSidebar()
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			final NavigationButton sidebar = sidebarButton;
+			final boolean wanted = config.showSidebar();
+			if (sidebar == null || wanted == sidebarShown)
+			{
+				return; // plugin is shutting down, or nothing to change
+			}
+
+			sidebarShown = wanted;
+			if (wanted)
+			{
+				clientToolbar.addNavigation(sidebar);
+			}
+			else
+			{
+				clientToolbar.removeNavigation(sidebar);
+			}
+		});
 	}
 
 	// ---------------------------------------------------------------- hotkeys & right-click menu
